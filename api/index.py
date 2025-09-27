@@ -14,14 +14,22 @@ except ImportError as e:
     # Fallback for debugging
     print(f"Import error: {e}")
     from fastapi import FastAPI
-    app = FastAPI()
+    from datetime import datetime
+    
+    app = FastAPI(title="Email Parsing Backend - Fallback")
     
     @app.get("/")
     def root():
-        return {"error": f"Import failed: {str(e)}"}
+        return {
+            "error": f"Import failed: {str(e)}",
+            "message": "Fallback app is running",
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    
+    @app.get("/health")
+    def health():
+        return {"status": "fallback", "error": str(e)}
 
-# For Vercel compatibility - this is the handler Vercel will call
-def handler(request):
-    from mangum import Mangum
-    asgi_handler = Mangum(app)
-    return asgi_handler(request, {})
+# For Vercel compatibility
+from mangum import Mangum
+handler = Mangum(app)
