@@ -1,4 +1,5 @@
 import os
+import sys
 import base64
 import logging
 import uuid
@@ -79,7 +80,8 @@ async def lifespan(app: FastAPI):
         logger.info("Database initialized successfully")
     except Exception as e:
         logger.error(f"Failed to initialize database: {str(e)}")
-        raise
+        # Don't raise in production, continue without database for now
+        logger.warning("Continuing without database initialization")
     yield
     # Shutdown
     logger.info("Application shutting down...")
@@ -101,10 +103,34 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Root endpoint
+@app.get("/")
+async def root():
+    return {
+        "message": "Underwriting Workbench API", 
+        "version": "1.0.0",
+        "status": "running",
+        "timestamp": datetime.utcnow()
+    }
+
 # Health check endpoint
 @app.get("/health")
 async def health_check():
     return {"status": "healthy", "timestamp": datetime.utcnow()}
+
+# Debug endpoint
+@app.get("/debug")
+async def debug_info():
+    return {
+        "environment": {
+            "DATABASE_URL": "***" if os.getenv("DATABASE_URL") else None,
+            "UPLOAD_DIR": os.getenv("UPLOAD_DIR", "/tmp/uploads"),
+            "PYTHONPATH": os.getenv("PYTHONPATH"),
+        },
+        "cwd": os.getcwd(),
+        "python_path": sys.path[:3],  # First 3 entries
+        "upload_dir_exists": os.path.exists(os.getenv("UPLOAD_DIR", "/tmp/uploads"))
+    }
 
 # Main API Endpoints
 @app.post("/api/email/intake", response_model=dict)

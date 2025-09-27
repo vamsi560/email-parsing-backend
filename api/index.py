@@ -8,11 +8,20 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from dotenv import load_dotenv
 load_dotenv()
 
-from app.main import app
+try:
+    from app.main import app
+except ImportError as e:
+    # Fallback for debugging
+    print(f"Import error: {e}")
+    from fastapi import FastAPI
+    app = FastAPI()
+    
+    @app.get("/")
+    def root():
+        return {"error": f"Import failed: {str(e)}"}
 
-# Vercel serverless function handler
-def handler(request, response):
-    return app
-
-# For Vercel compatibility
-app = app
+# For Vercel compatibility - this is the handler Vercel will call
+def handler(request):
+    from mangum import Mangum
+    asgi_handler = Mangum(app)
+    return asgi_handler(request, {})
