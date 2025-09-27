@@ -6,9 +6,7 @@ from app.models import Base
 # Database configuration
 DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
-    # Use a default SQLite database for development/testing
-    DATABASE_URL = "sqlite:///./test.db"
-    print("Warning: DATABASE_URL not set, using SQLite fallback")
+    raise ValueError("DATABASE_URL environment variable is required. Please configure your database connection.")
 
 engine = create_engine(
     DATABASE_URL,
@@ -26,6 +24,13 @@ def get_db():
 
 def init_db():
     """Initialize database tables (only creates tables that don't exist)"""
-    # Only create the draft table since submissions table already exists
-    from app.models import SubmissionDraft
-    SubmissionDraft.__table__.create(bind=engine, checkfirst=True)
+    try:
+        # Import all models to ensure they're registered
+        from app.models import Submission, SubmissionDraft
+        
+        # Create all tables that don't exist
+        Base.metadata.create_all(bind=engine, checkfirst=True)
+        print("Database tables initialized successfully")
+    except Exception as e:
+        print(f"Failed to initialize database tables: {e}")
+        raise

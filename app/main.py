@@ -80,8 +80,7 @@ async def lifespan(app: FastAPI):
         logger.info("Database initialized successfully")
     except Exception as e:
         logger.error(f"Failed to initialize database: {str(e)}")
-        # Don't raise in production, continue without database for now
-        logger.warning("Continuing without database initialization")
+        raise RuntimeError(f"Database initialization failed: {str(e)}. Please check your DATABASE_URL configuration.")
     yield
     # Shutdown
     logger.info("Application shutting down...")

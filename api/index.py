@@ -1,85 +1,54 @@
-import json
-from datetime import datetime
+import os
+import sys
 
-def handler(request):
-    """
-    Vercel-compatible handler function
-    """
-    try:
-        # Get the request path and method
-        path = request.get("path", "/")
-        method = request.get("httpMethod", "GET")
-        
-        # Route handling
-        if path == "/" and method == "GET":
-            response_body = {
-                "message": "Email Parsing Backend is working!",
-                "status": "ok",
-                "timestamp": datetime.utcnow().isoformat()
-            }
-        elif path == "/health" and method == "GET":
-            response_body = {
-                "status": "healthy",
-                "timestamp": datetime.utcnow().isoformat()
-            }
-        elif path == "/api/email/intake" and method == "POST":
-            # Parse request body
-            body = request.get("body", "{}")
-            if isinstance(body, str):
-                try:
-                    data = json.loads(body)
-                except:
-                    data = {}
-            else:
-                data = body
-            
-            response_body = {
-                "success": True,
-                "message": "Email intake successful",
-                "received_data": {
-                    "subject": data.get("subject", "not provided"),
-                    "from": data.get("from", "not provided"),
-                    "body_length": len(data.get("body", "")),
-                    "attachments_count": len(data.get("attachments", []))
-                },
-                "extracted_data": {
-                    "insured_name": "Test Company Inc",
-                    "policy_type": "General Liability",
-                    "coverage_amount": "$1,000,000",
-                    "effective_date": "2025-10-01",
-                    "broker": "Test Broker LLC"
-                }
-            }
-        else:
-            response_body = {
-                "error": "Not found",
-                "path": path,
-                "method": method
-            }
-            return {
-                "statusCode": 404,
-                "headers": {"Content-Type": "application/json"},
-                "body": json.dumps(response_body)
-            }
-        
+# Add the root directory to Python path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# Load environment variables
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # dotenv not available in production
+
+# Import the main FastAPI app
+try:
+    from app.main import app
+    print("Successfully imported main app")
+except Exception as e:
+    print(f"Failed to import main app: {e}")
+    # Create a fallback app
+    from fastapi import FastAPI
+    from datetime import datetime
+    
+    app = FastAPI(title="Email Parsing Backend - Fallback")
+    
+    @app.get("/")
+    def root():
         return {
-            "statusCode": 200,
-            "headers": {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-                "Access-Control-Allow-Headers": "Content-Type"
-            },
-            "body": json.dumps(response_body)
-        }
-        
-    except Exception as e:
-        error_response = {
-            "error": str(e),
+            "error": "Main app import failed",
+            "message": f"Import error: {str(e)}",
+            "fallback": True,
             "timestamp": datetime.utcnow().isoformat()
         }
+
+# Vercel handler using Mangum
+try:
+    from mangum import Mangum
+    handler = Mangum(app)
+except ImportError as e:
+    print(f"Mangum import failed: {e}")
+    # Pure function fallback
+    import json
+    from datetime import datetime
+    
+    def handler(request):
         return {
             "statusCode": 500,
             "headers": {"Content-Type": "application/json"},
-            "body": json.dumps(error_response)
+            "body": json.dumps({
+                "error": "Mangum not available",
+                "detail": str(e),
+                "timestamp": datetime.utcnow().isoformat()
+            })
         }

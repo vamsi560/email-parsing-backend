@@ -25,7 +25,7 @@ def extract_with_llm(text: str) -> Dict[str, Any]:
     Returns a dictionary with the extracted fields
     """
     if not model:
-        raise ValueError("Gemini API key not configured")
+        raise ValueError("Gemini API key not configured. Please set GEMINI_API_KEY environment variable.")
     
     # Truncate text if too long (keep within token limits)
     max_text_length = 30000  # Gemini has higher token limits
